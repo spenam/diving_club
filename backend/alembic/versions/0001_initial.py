@@ -3,6 +3,7 @@
 import sqlalchemy as sa
 
 from alembic import op
+from sqlalchemy.dialects import postgresql
 
 revision = "0001_initial"
 down_revision = None
@@ -11,8 +12,14 @@ depends_on = None
 
 
 def upgrade():
-    status = sa.Enum(
-        "AVAILABLE", "BORROWED", "MAINTENANCE", "OUT_OF_SERVICE", "RETIRED", name="equipment_status"
+    status = postgresql.ENUM(
+        "AVAILABLE",
+        "BORROWED",
+        "MAINTENANCE",
+        "OUT_OF_SERVICE",
+        "RETIRED",
+        name="equipment_status",
+        create_type=False,
     )
     status.create(op.get_bind(), checkfirst=True)
     op.create_table(
