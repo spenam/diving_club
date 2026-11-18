@@ -6,7 +6,9 @@ from app.models.entities import Equipment, EquipmentStatus, Loan, Member, utcnow
 
 
 def checkout(db: Session, equipment_uuid: str, member_id: int, note: str | None = None) -> Loan:
-    equipment = db.scalar(select(Equipment).where(Equipment.uuid == equipment_uuid).with_for_update())
+    equipment = db.scalar(
+        select(Equipment).where(Equipment.uuid == equipment_uuid).with_for_update()
+    )
     member = db.get(Member, member_id)
     if equipment is None:
         raise HTTPException(status_code=404, detail="Equipment not found")
@@ -23,7 +25,9 @@ def checkout(db: Session, equipment_uuid: str, member_id: int, note: str | None 
 
 
 def return_equipment(db: Session, equipment_uuid: str, note: str | None = None) -> Loan:
-    equipment = db.scalar(select(Equipment).where(Equipment.uuid == equipment_uuid).with_for_update())
+    equipment = db.scalar(
+        select(Equipment).where(Equipment.uuid == equipment_uuid).with_for_update()
+    )
     if equipment is None:
         raise HTTPException(status_code=404, detail="Equipment not found")
     loan = db.scalar(

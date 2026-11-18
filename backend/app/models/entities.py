@@ -1,15 +1,15 @@
 import enum
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-from sqlalchemy import DateTime, Enum, ForeignKey, Index, Integer, String, Text, UniqueConstraint
+from sqlalchemy import DateTime, Enum, ForeignKey, Index, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
 
 
 def utcnow():
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class EquipmentStatus(str, enum.Enum):
@@ -45,7 +45,9 @@ class Equipment(Base):
     __table_args__ = (UniqueConstraint("serial_number", name="uq_equipment_serial_number"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    uuid: Mapped[str] = mapped_column(String(36), default=lambda: str(uuid.uuid4()), unique=True, index=True)
+    uuid: Mapped[str] = mapped_column(
+        String(36), default=lambda: str(uuid.uuid4()), unique=True, index=True
+    )
     name: Mapped[str] = mapped_column(String(160), index=True)
     manufacturer: Mapped[str | None] = mapped_column(String(120), nullable=True)
     model: Mapped[str | None] = mapped_column(String(120), nullable=True)
@@ -60,7 +62,9 @@ class Equipment(Base):
     category: Mapped[Category] = relationship(back_populates="equipment")
     loans: Mapped[list["Loan"]] = relationship(back_populates="equipment")
     incidents: Mapped[list["Incident"]] = relationship(back_populates="equipment")
-    maintenance_records: Mapped[list["MaintenanceRecord"]] = relationship(back_populates="equipment")
+    maintenance_records: Mapped[list["MaintenanceRecord"]] = relationship(
+        back_populates="equipment"
+    )
 
 
 class Loan(Base):
