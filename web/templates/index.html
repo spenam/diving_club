@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Diving Club Manager</title>
+  <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+  <style>
+    :root { font-family: system-ui, sans-serif; color: #173042; background: #f3f7f9; }
+    body { max-width: 1050px; margin: 2rem auto; padding: 0 1rem; }
+    header { display:flex; justify-content:space-between; align-items:center; gap:1rem; }
+    .panel { background:white; padding:1.25rem; border-radius:12px; margin:1rem 0; box-shadow:0 2px 12px #1231; }
+    input, select, button { padding:.65rem; margin:.25rem; max-width:100%; }
+    button { cursor:pointer; background:#087e8b; color:white; border:0; border-radius:6px; }
+    table { width:100%; border-collapse:collapse; } td,th { text-align:left; padding:.6rem; border-bottom:1px solid #ddd; }
+    .muted { color:#627785; } .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:1rem; }
+  </style>
+</head>
+<body>
+<header><div><h1>🌊 Diving Club Manager</h1><p class="muted">Equipment inventory · starter release</p></div></header>
+<div class="grid">
+  <section class="panel">
+    <h2>Add category</h2>
+    <form id="category-form">
+      <input name="name" placeholder="e.g. Regulators" required>
+      <button type="submit">Add category</button>
+    </form>
+    <p id="category-message" class="muted"></p>
+  </section>
+  <section class="panel">
+    <h2>Add member</h2>
+    <form id="member-form">
+      <input name="first_name" placeholder="First name" required>
+      <input name="last_name" placeholder="Last name" required>
+      <input name="email" type="email" placeholder="Email (optional)">
+      <button type="submit">Add member</button>
+    </form>
+    <p id="member-message" class="muted"></p>
+  </section>
+</div>
+<section class="panel">
+  <h2>Register equipment</h2>
+  <form id="equipment-form">
+    <input name="name" placeholder="Equipment name" required>
+    <select name="category_id" id="category-select" required><option value="">Choose category</option></select>
+    <input name="manufacturer" placeholder="Manufacturer">
+    <input name="model" placeholder="Model">
+    <input name="serial_number" placeholder="Serial number">
+    <button type="submit">Save equipment</button>
+  </form>
+  <p id="equipment-message" class="muted"></p>
+</section>
+<section class="panel">
+  <h2>Inventory</h2>
+  <button id="refresh-inventory" type="button">Refresh inventory</button>
+  <div id="inventory" hx-get="/ui/inventory" hx-trigger="load, click from:#refresh-inventory" hx-swap="innerHTML"><p class="muted">Loading…</p></div>
+</section>
+<section class="panel">
+  <h2>Members</h2>
+  <div id="members" hx-get="/ui/members" hx-trigger="load" hx-swap="innerHTML"><p class="muted">Loading…</p></div>
+</section>
+<script>
+async function api(path, options={}) {
+  const response = await fetch('/api/v1/' + path, {
+    ...options, headers: {'Content-Type':'application/json', ...(options.headers || {})}
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(body.detail || 'Request failed');
+  return body;
+}
+async function loadCategories() {
+  const categories = await api('categories');
+  document.querySelector('#category-select').innerHTML =
+    '<option value="">Choose category</option>' +
+    categories.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+}
+async function loadInventory() {
+  const items = await api('equipment');
+  document.querySelector('#inventory').innerHTML = items.length ? `
+    <table><thead><tr><th>Equipment</th><th>Category ID</th><th>Status</th><th>QR payload</th></tr></thead>
+    <tbody>${items.map(i => `<tr><td>${escapeHtml(i.name)}</td><td>${i.category_id}</td>
+    <td>${i.status}</td><td><code>DCM:${i.uuid}</code></td></tr>`).join('')}</tbody></table>` :
+    '<p class="muted">No equipment registered yet.</p>';
+}
+async function loadMembers() {
+  const members = await api('members');
+  document.querySelector('#members').innerHTML = members.length ?
+    '<ul>' + members.map(m => `<li>${escapeHtml(m.first_name)} ${escapeHtml(m.last_name)}</li>`).join('') + '</ul>' :
+    '<p class="muted">No members registered yet.</p>';
+}
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+document.querySelector('#category-form').addEventListener('submit', async e => {
+  e.preventDefault(); const f = new FormData(e.target);
+  try { await api('categories', {method:'POST', body:JSON.stringify({name:f.get('name')})});
+    e.target.reset(); document.querySelector('#category-message').textContent='Category saved.';
+    await loadCategories();
+  } catch(err) { document.querySelector('#category-message').textContent=err.message; }
+});
+document.querySelector('#member-form').addEventListener('submit', async e => {
+  e.preventDefault(); const f = new FormData(e.target);
+  try { await api('members', {method:'POST', body:JSON.stringify(Object.fromEntries(f))});
+    e.target.reset(); document.querySelector('#member-message').textContent='Member saved.'; await loadMembers();
+  } catch(err) { document.querySelector('#member-message').textContent=err.message; }
+});
+document.querySelector('#equipment-form').addEventListener('submit', async e => {
+  e.preventDefault(); const f = new FormData(e.target);
+  const data = Object.fromEntries(f); data.category_id = Number(data.category_id);
+  try { await api('equipment', {method:'POST', body:JSON.stringify(data)});
+    e.target.reset(); document.querySelector('#equipment-message').textContent='Equipment saved.';
+    await loadInventory(); await loadCategories();
+  } catch(err) { document.querySelector('#equipment-message').textContent=err.message; }
+});
+Promise.all([loadCategories(), loadInventory(), loadMembers()]).catch(err => {
+  document.querySelector('#inventory').textContent = 'Could not load data: ' + err.message;
+});
+</script>
+</body>
+</html>
