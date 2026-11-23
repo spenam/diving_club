@@ -7,6 +7,8 @@ name = "diving-club-manager"
 version = "0.1.0"
 description = "Inventory and equipment loan management for a diving club"
 requires-python = ">=3.12"
+license = { text = "MIT" }
+authors = [{ name = "Santiago Pena Martinez" }]
 dependencies = [
   "fastapi>=0.115,<1",
   "uvicorn[standard]>=0.30,<1",
